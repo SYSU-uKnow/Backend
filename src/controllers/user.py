@@ -62,3 +62,57 @@ def perfectInfo(user_id):
 
   return jsonify(data)
 
+# 3.点击头像跳转到提问页面
+@user.route('/api/users/<int:user_id>/introduction')
+@check_session
+def introduction(user_id):
+  id = request.args.get("id")
+  c = g.db.cursor() 
+  
+  data = {}
+  data["status"] = 200
+  data["data"] = {}
+
+  sql = '''select u.avatarUrl, u.username, u.description, u.status 
+     from user u where u.id = %d''' % user_id
+  c.execute(sql)
+  result = c.fetchone()
+  data["data"]["avatarUrl"] = result[0]
+  data["data"]["username"] = result[1]
+  data["data"]["description"] = result[2]
+  data["data"]["status"] = result[3]
+
+  #关注信息
+  sql = '''select f.uid from follow f where followed_uid = %d''' % user_id
+  c.execute(sql)
+  results = c.fetchall()
+  data["data"]["followedNum"] = len(results)
+  data["data"]["followed"] = 0
+  for row in results:
+    if (row[0] == int(id)):
+      data["data"]["followed"] = 1
+      break
+
+  #回答问题数
+  sql = '''select count(*)
+        from question q
+        where q.answerer_id = %d''' % user_id
+  c.execute(sql)
+  ansNum = c.fetchone()
+  data["data"]["ansNum"] = ansNum[0]
+
+  #回答的问题
+  data["data"]["answers"] = []
+  sql = '''select q.id, q.description, q.answerer_id, q.audioSeconds
+          from question q
+          where q.answerer_id = %d and q.audioSeconds is not null''' % user_id
+  c.execute(sql)
+  results = c.fetchall()
+  for row in results:
+    record = {'id':row[0], 'description':row[1], 'audioSeconds':row[3]}
+    tmp = question._getSomeDetail(row[0], row[2])
+    record.update(tmp)
+    data["data"]["answers"].append(record)
+
+  return jsonify(data)
+
