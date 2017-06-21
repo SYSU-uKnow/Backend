@@ -24,3 +24,19 @@ def _getSomeDetail(question_id, answerer_id):
     tmp['answerer_avatarUrl'] = None
     tmp['answerer_status'] = None
     tmp['answerer_description'] = None
+
+
+  #收听人数
+  sql = 'select count(*) from listening l where l.qid = %d' % question_id
+  c.execute(sql)
+  listeningNum = c.fetchone()[0]
+  
+  #点赞人数
+  sql = '''select count(*) from comment c where c.qid = %d and c.liked = 1''' % question_id
+  c.execute(sql)
+  praiseNum = c.fetchone()[0]
+
+  tmp['listeningNum'] = listeningNum
+  tmp['praiseNum'] = praiseNum
+
+  return tmp
