@@ -237,3 +237,68 @@ def findQuestion():
     data['errmsg'] = '搜索失败'
 
   return jsonify(data)
+
+# 9.提问
+@question.route('/api/questions', methods=['POST'])
+@check_session
+def askQuestion():
+  description = request.form.get("description")
+  askDate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+  answerer_id = int(request.form.get("answerer_id"))
+  asker_id = session['user_id']
+
+  c = g.db.cursor() 
+  sql = "insert into question(description, askDate, asker_id, answerer_id) values ('%s','%s', %d, %d)" % (description,askDate,asker_id,answerer_id)
+  #返回的数据data
+  data = {}
+  data["status"]=200
+  data["data"] = {}
+  try:
+    c.execute(sql)
+    g.db.commit()
+  except:
+    data["errmsg"] = "提问失败"
+    data["status"] = 500
+
+  return jsonify(data)
+
+# 12.回答问题
+@question.route('/api/questions/<int:question_id>/answer', methods=['PATCH'])
+@check_session
+def updateInfo(question_id):
+  # answerer_id = request.form.get("answerer_id")
+  audioUrl = None
+  hasFile = True
+  c = g.db.cursor()
+  
+  ##返回的数据data
+  data = {}
+  data["status"]=200
+  data["data"] = {}
+
+  sql = """select audioUrl from question where id = %d""" % question_id
+  c.execute(sql)
+  if c.fetchone()[0] != None:
+    data["errmsg"] = "问题已回答"
+    data["status"] = 500
+  else:
+    try:
+      srcFile = request.files["audio"]
+      audioSeconds = request.form.get('audioSeconds')
+      print "audioSeconds", audioSeconds
+    except:
+      hasFile = False
+    try:
+      if hasFile == True:
+        # 文件命名为question_id+后缀
+        audioUrl = str(question_id) + os.path.splitext(srcFile.filename)[1]
+        srcFile.save("static/audio/" + audioUrl)
+        sql="""update question set audioUrl='%s', audioSeconds = '%s'
+            where id=%d""" % (audioUrl, audioSeconds, question_id)
+        c.execute(sql)
+        g.db.commit()
+    except Exception as e:
+      data["errmsg"] = "录音上传失败"
+      data["status"] = 500
+  
+  return jsonify(data)
