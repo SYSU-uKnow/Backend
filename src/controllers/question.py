@@ -98,7 +98,9 @@ def getRecommend():
 
   return jsonify(data)
 
-
+# 4. 收听
+@question.route('/api/questions/<int:question_id>/listenings', methods = ['POST'])
+@chec
 # 2. 点击问题后进入详情页面
 @question.route('/api/questions/<int:question_id>')
 @check_session
