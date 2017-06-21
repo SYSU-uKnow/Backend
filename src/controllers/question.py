@@ -147,3 +147,93 @@ def questionDetail(question_id):
     data["status"] = 500
 
   return jsonify(data)
+k_session
+def listenings(question_id):
+  data = {}
+  data["status"] = 200
+  data["data"] = {}
+
+  user_id = int(session['user_id'])
+
+  try:
+    sql = '''select q.audioUrl from question q where q.id = %d''' % question_id
+    c = g.db.cursor()
+    c.execute(sql)
+    result = c.fetchone()
+    data['data']['audioUrl'] = result[0]
+
+  except:
+    data["errmsg"] = "问题未回答"
+    data["status"] = 500
+
+  return jsonify(data)
+
+# 5.评价
+@question.route('/api/questions/<int:question_id>/comments', methods=['POST'])
+@check_session
+def comment(question_id):
+  praise = request.form.get("praise")
+  user_id = request.form.get("user_id")
+  c = g.db.cursor() 
+
+  data = {}
+  data["status"] = 200
+  data["data"] = {}
+
+  sql = '''select * from comment c where c.uid = %d and c.qid = %d''' % (int(user_id), question_id)
+  c.execute(sql)
+  result = c.fetchone()
+  if result != None:
+    data["errmsg"] = "已评价"
+    data["status"] = 500
+  else:
+    sql = "insert into comment values (%s, %d, %d)" % (user_id, question_id, int(praise))
+    try:
+      if praise == "0" or praise == "1":
+        c.execute(sql)
+        g.db.commit()
+      sql = "insert into listening values (%d, %d)" % (int(user_id), question_id)
+      c.execute(sql)
+      g.db.commit()
+
+    except Exception as e:
+      print e
+      data["errmsg"] = "评价失败"
+      data["status"] = 500
+
+  return jsonify(data)
+
+# 6. 搜索感兴趣的问题
+@question.route('/api/questions/find', methods=['GET'])
+@check_session
+def findQuestion():
+  data = {}
+  data["status"] = 200
+  args = request.args
+  try:
+    data['data'] = []
+    query = args['query_string']
+    c = g.db.cursor()
+
+    # 分词
+    query_statement = " ".join(jieba.cut(query))
+    list = query_statement.split()
+    
+    for string in list:
+      sql = """select q.id, q.description, q.answerer_id
+            from question q where q.description like \'%%%s%%\' and q.audioUrl is not null""" % string
+      c.execute(sql)
+      result = c.fetchall()
+
+      for row in result:
+        record = {'id':row[0], 'description':row[1], 'answerer_id':row[2]}
+        tmp = _getSomeDetail(row[0], row[2])
+        record.update(tmp)
+        data['data'].append(record)
+    
+  except Exception as e:
+    del data['data']
+    data['status'] = 500
+    data['errmsg'] = '搜索失败'
+
+  return jsonify(data)
