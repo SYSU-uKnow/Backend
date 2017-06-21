@@ -104,3 +104,56 @@ def questionDetail(question_id):
     data["status"] = 500
 
   return jsonify(data)
+
+# 4. 收听
+@visitor.route('/api/wx/questions/<int:question_id>/listenings', methods = ['POST'])
+def listenings(question_id):
+  data = {}
+  data["status"] = 200
+  data["data"] = {}
+  try:
+    sql = '''select q.audioUrl from question q where q.id = %d''' % question_id
+    c = g.db.cursor()
+    c.execute(sql)
+    result = c.fetchone()
+    data['data']['audioUrl'] = result[0]
+
+  except:
+    data["errmsg"] = "收听失败"
+    data["status"] = 500
+
+  return jsonify(data)
+
+# 6. 搜索感兴趣的问题
+@visitor.route('/api/wx/questions/find', methods=['GET'])
+def findQuestion():
+  data = {}
+  data["status"] = 200
+  args = request.args
+  try:
+    data['data'] = []
+    query = args['query_string']
+    c = g.db.cursor()
+
+    # 分词
+    query_statement = " ".join(jieba.cut(query))
+    list = query_statement.split()
+    
+    for string in list:
+      sql = """select q.id, q.description, q.answerer_id
+            from question q where q.description like \'%%%s%%\' and q.audioUrl is not null""" % string
+      c.execute(sql)
+      result = c.fetchall()
+
+      for row in result:
+        record = {'id':row[0], 'description':row[1], 'answerer_id':row[2]}
+        tmp = _getSomeDetail(row[0], row[2])
+        record.update(tmp)
+        data['data'].append(record)
+    
+  except Exception as e:
+    del data['data']
+    data['status'] = 500
+    data['errmsg'] = '搜索失败'
+
+  return jsonify(data)
